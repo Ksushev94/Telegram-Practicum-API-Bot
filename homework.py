@@ -30,13 +30,9 @@ HOMEWORK_VERDICTS = {
 class APIError(Exception):
     """Исключение для ошибок, связанных с API Практикума."""
 
-    pass
-
 
 class ResponseValidationError(Exception):
     """Исключение для ошибок валидации структуры ответа API."""
-
-    pass
 
 
 logger = logging.getLogger(__name__)
@@ -100,7 +96,7 @@ def get_api_answer(timestamp: int) -> Dict[str, Any]:
             f'Сбой при запросе к эндпоинту {ENDPOINT}: {error}'
         ) from error
     if response.status_code != http.HTTPStatus.OK:
-        raise requests.exceptions.HTTPError(
+        raise APIError(
             'Получен неожиданный статус кода: '
             f'{response.status_code} при запросе к {ENDPOINT}'
         )
@@ -154,8 +150,7 @@ def parse_status(homework: Dict[str, Any]) -> str:
 
 def main() -> None:
     """Основная логика работы бота."""
-    last_error_message = None
-    last_homework_status_message = None
+    last_sent_message = None
     missing_tokens = check_tokens()
     if missing_tokens:
         error_message = (
@@ -164,33 +159,45 @@ def main() -> None:
         )
         logger.critical(error_message)
         sys.exit(error_message)
-    else:
-        logger.debug('Все необходимые переменные окружения доступны.')
     bot = TeleBot(token=TELEGRAM_TOKEN)
     logger.info('Бот успешно инициализирован.')
-    timestamp = int(time.time())
+    timestamp = 0
     logger.info('Бот начал работу.')
     while True:
+        current_message_to_send = None
         try:
             logger.info(f'Запрашиваем API с timestamp: {timestamp}')
             response = get_api_answer(timestamp)
             homeworks = check_response(response)
             if homeworks:
                 latest_homework = homeworks[0]
-                message_text = parse_status(latest_homework)
-                if message_text != last_homework_status_message:
-                    send_message(bot, message_text)
-                    last_homework_status_message = message_text
+                current_message_to_send = parse_status(latest_homework)
             else:
+                current_message_to_send = (
+                    'Нет новых статусов домашних работ. Ожидаем изменений.'
+                )
                 logger.debug('Нет новых статусов домашних работ.')
             timestamp = response.get('current_date', timestamp)
+        except (APIError, ResponseValidationError) as error:
+            current_message_to_send = (
+                f'Ошибка в работе API или валидации ответа: {error}'
+            )
+            logger.error(current_message_to_send, exc_info=True)
+        except (TypeError, KeyError, ValueError) as error:
+            current_message_to_send = (
+                f'Ошибка в структуре данных ответа или при обработке: {error}'
+            )
+            logger.error(current_message_to_send, exc_info=True)
         except Exception as error:
-            current_error_message = f'Сбой в работе программы: {error}'
-            logger.error(current_error_message, exc_info=True)
-            if current_error_message != last_error_message:
-                send_message(bot, current_error_message)
-                last_error_message = current_error_message
+            current_message_to_send = (
+                f'Непредвиденный сбой в работе программы: {error}'
+            )
+            logger.error(current_message_to_send, exc_info=True)
         finally:
+            if (current_message_to_send is not None
+                    and current_message_to_send != last_sent_message):
+                send_message(bot, current_message_to_send)
+                last_sent_message = current_message_to_send
             logger.info(
                 f'Ожидание {RETRY_PERIOD} секунд перед следующим запросом.'
             )
