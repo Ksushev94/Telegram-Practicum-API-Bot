@@ -161,7 +161,7 @@ def main() -> None:
         sys.exit(error_message)
     bot = TeleBot(token=TELEGRAM_TOKEN)
     logger.info('Бот успешно инициализирован.')
-    timestamp = 0
+    timestamp = int(time.time())
     logger.info('Бот начал работу.')
     while True:
         current_message_to_send = None
@@ -177,27 +177,36 @@ def main() -> None:
                     'Нет новых статусов домашних работ. Ожидаем изменений.'
                 )
                 logger.debug('Нет новых статусов домашних работ.')
+            if (current_message_to_send
+                    and current_message_to_send != last_sent_message):
+                send_message(bot, current_message_to_send)
+                last_sent_message = current_message_to_send
             timestamp = response.get('current_date', timestamp)
         except (APIError, ResponseValidationError) as error:
             current_message_to_send = (
                 f'Ошибка в работе API или валидации ответа: {error}'
             )
             logger.error(current_message_to_send, exc_info=True)
+            if current_message_to_send != last_sent_message:
+                send_message(bot, current_message_to_send)
+                last_sent_message = current_message_to_send
         except (TypeError, KeyError, ValueError) as error:
             current_message_to_send = (
                 f'Ошибка в структуре данных ответа или при обработке: {error}'
             )
             logger.error(current_message_to_send, exc_info=True)
+            if current_message_to_send != last_sent_message:
+                send_message(bot, current_message_to_send)
+                last_sent_message = current_message_to_send
         except Exception as error:
             current_message_to_send = (
                 f'Непредвиденный сбой в работе программы: {error}'
             )
             logger.error(current_message_to_send, exc_info=True)
-        finally:
-            if (current_message_to_send is not None
-                    and current_message_to_send != last_sent_message):
+            if current_message_to_send != last_sent_message:
                 send_message(bot, current_message_to_send)
                 last_sent_message = current_message_to_send
+        finally:
             logger.info(
                 f'Ожидание {RETRY_PERIOD} секунд перед следующим запросом.'
             )
