@@ -148,6 +148,22 @@ def parse_status(homework: Dict[str, Any]) -> str:
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
+def send_telegram_update(
+        bot: TeleBot,
+        current_message_to_send: str,
+        last_sent_message: str
+) -> str:
+    """Дополнительная функция: логика отправки нового сообщения в Телеграм.
+
+    Необходима для оптимизации и уменьшения вложенности в main().
+    """
+    if (current_message_to_send is not None
+            and current_message_to_send != last_sent_message):
+        send_message(bot, current_message_to_send)
+        return current_message_to_send
+    return last_sent_message
+
+
 def main() -> None:
     """Основная логика работы бота."""
     last_sent_message = None
@@ -177,35 +193,34 @@ def main() -> None:
                     'Нет новых статусов домашних работ. Ожидаем изменений.'
                 )
                 logger.debug('Нет новых статусов домашних работ.')
-            if (current_message_to_send
-                    and current_message_to_send != last_sent_message):
-                send_message(bot, current_message_to_send)
-                last_sent_message = current_message_to_send
+            last_sent_message = send_telegram_update(
+                bot, current_message_to_send, last_sent_message
+            )
             timestamp = response.get('current_date', timestamp)
         except (APIError, ResponseValidationError) as error:
             current_message_to_send = (
                 f'Ошибка в работе API или валидации ответа: {error}'
             )
             logger.error(current_message_to_send, exc_info=True)
-            if current_message_to_send != last_sent_message:
-                send_message(bot, current_message_to_send)
-                last_sent_message = current_message_to_send
+            last_sent_message = send_telegram_update(
+                bot, current_message_to_send, last_sent_message
+            )
         except (TypeError, KeyError, ValueError) as error:
             current_message_to_send = (
                 f'Ошибка в структуре данных ответа или при обработке: {error}'
             )
             logger.error(current_message_to_send, exc_info=True)
-            if current_message_to_send != last_sent_message:
-                send_message(bot, current_message_to_send)
-                last_sent_message = current_message_to_send
+            last_sent_message = send_telegram_update(
+                bot, current_message_to_send, last_sent_message
+            )
         except Exception as error:
             current_message_to_send = (
                 f'Непредвиденный сбой в работе программы: {error}'
             )
             logger.error(current_message_to_send, exc_info=True)
-            if current_message_to_send != last_sent_message:
-                send_message(bot, current_message_to_send)
-                last_sent_message = current_message_to_send
+            last_sent_message = send_telegram_update(
+                bot, current_message_to_send, last_sent_message
+            )
         finally:
             logger.info(
                 f'Ожидание {RETRY_PERIOD} секунд перед следующим запросом.'
