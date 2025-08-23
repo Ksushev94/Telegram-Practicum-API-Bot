@@ -178,13 +178,7 @@ def main() -> None:
                 )
                 logger.debug('Нет новых статусов домашних работ.')
             if current_message_to_send != last_sent_message:
-                try:
-                    send_message(bot, current_message_to_send)
-                except Exception:
-                    raise
-                else:
-                    last_sent_message = current_message_to_send
-                    timestamp = response.get('current_date', timestamp)
+                send_message(bot, current_message_to_send)
         except Exception as error:
             current_message_to_send = (
                 f'Непредвиденный сбой в работе программы: {error}'
@@ -193,6 +187,9 @@ def main() -> None:
             if current_message_to_send != last_sent_message:
                 send_message(bot, current_message_to_send)
                 last_sent_message = current_message_to_send
+        else:
+            last_sent_message = current_message_to_send
+            timestamp = response.get('current_date', timestamp)
         finally:
             logger.info(
                 f'Ожидание {RETRY_PERIOD} секунд перед следующим запросом.'
