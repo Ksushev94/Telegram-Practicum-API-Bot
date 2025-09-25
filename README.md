@@ -19,7 +19,7 @@ git clone https://github.com/Ksushev94/Telegram-Practicum-API-Bot.git
 
 2. Создание и активация виртуального окружения.  
 Перейти в папку проекта:  
-cd kittygram_backend  
+cd Telegram-Practicum-API-Bot
 Создать виртуальное окружение и активировать его:  
 Для Windows  
 python -m venv venv  
