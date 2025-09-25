@@ -15,7 +15,7 @@
 
 1. Клонирование репозитория.  
 В командной строке:  
-git clone https://github.com/Ksushev94/api-final-yatube.git  
+git clone https://github.com/Ksushev94/Telegram-Practicum-API-Bot.git
 
 2. Создание и активация виртуального окружения.  
 Перейти в папку проекта:  
